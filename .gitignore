@@ -1,0 +1,21 @@
+# Build directories
+bin/
+obj/
+
+# IDE directories
+.vscode/
+
+# Output files
+*.csv
+pressure_results.csv
+
+# Compiled binaries
+*.o
+*.exe
+pw.executable.example
+
+# Temporary files
+*.tmp
+*.log
+
+third_party/

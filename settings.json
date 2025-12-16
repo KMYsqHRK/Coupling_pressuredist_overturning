@@ -1,0 +1,89 @@
+{
+    "description": "sliding object simulation with pressure distribution solver",
+    "output_file": "force_history.csv",
+    "log_interval": 10,
+    "df_index": 2,
+    "division_number": 5,
+    "boundary_points": [
+        {
+            "name": "Point1",
+            "position": {
+                "x": 0.15,
+                "y": 0.20,
+                "z": 0.15
+            }
+        },
+        {
+            "name": "Point2",
+            "position": {
+                "x": 0.17,
+                "y": 0.20,
+                "z": 0.15
+            }
+        },
+        {
+            "name": "Point3",
+            "position": {
+                "x": 0.15,
+                "y": 0.22,
+                "z": 0.15
+            }
+        }
+    ],
+    "measurement_radius": 0.01,
+    "filtering": {
+        "exclude_ghost_particles": true
+    },
+    "simulation": {
+        "object_id": 46,
+        "fsi_enabled": 1.0,
+        "windowSize": 1,
+        "calculation_start_time": 0.0,
+        "exclude_pressure" : 1000.0
+    },
+    "physics": {
+        "mass": 2.541,
+        "height": 5,
+        "static_friction": 0.913,
+        "dynamic_friction": 0.769,
+        "wet_static_friction": 0.913,
+        "wet_dynamic_friction": 0.769
+    },
+    "gravity": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 9.8
+    },
+    "rotation_center": {
+        "x": 0.16,
+        "y": 0.21,
+        "z": 0.15
+    },
+    "infiltration": {
+        "hydraulic_conductivity":1e-8,
+        "kinematic_viscosity_coefficient":1e-6
+    },
+    "units": {
+        "length_in_PW": "mm",
+        "time": "s",
+        "pressure": "Pa",
+        "force": "N",
+        "description": "SI units with length in meters for pressure analysis, millimeters for motion simulation"
+    },
+    "force_history": {
+        "output_file": "force_history.csv",
+        "save_interval": 1,
+        "description": "Force history output configuration - saves API_Force_Z, Pressure_Force_Z, Pressure_Torque_Y, Net_Force_Z, Position_Z, Velocity_Z with time. API_Force_Z is from ParticleWorks API, Pressure_Force_Z is buoyancy from pressure distribution."
+    },
+    "pressure_grid_export": {
+        "output_file": "pressure_grid.csv",
+        "save_interval": 100,
+        "include_wet_dry": true,
+        "description": "Pressure grid distribution export configuration - saves entire pressure grid with coordinates and wet/dry status at specified intervals"
+    },
+    "solver": {
+        "max_iterations": 1000,
+        "tolerance": 1e-6,
+        "description": "Iterative solver settings for Poisson equation. Defaults: max_iterations=1000, tolerance=1e-6. Typical convergence: 10-100 iterations for grid sizes 5x5 to 50x50. Increase max_iterations if convergence warnings appear. Decrease tolerance to 1e-4 for faster solving with slight accuracy loss."
+    }
+}

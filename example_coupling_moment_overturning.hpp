@@ -82,6 +82,8 @@ private:
     Eigen::MatrixXd m_grid_infil_distance;
     bool m_grid_infil_distance_initialized;
 
+    bool pile_is_broken = false;
+
     int tid = 0;
 
 	std::vector<double>  Externalforce_x;

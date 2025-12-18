@@ -1237,7 +1237,10 @@ void Module::calculate_moment(const pw::api::Session & session, const Eigen::Mat
     std::cout << "========================================" << std::endl;
 }
 
-
+	// -- External Force parameters
+    // Force is in N (kg·m/s²), mass is in kg, dt is in s
+    // Acceleration is in m/s², multiply by pw_to_m to convert to PW units/s²
+    // Velocity is stored in PW units/s (e.g., mm/s if PW uses mm)
 void Module::calculate_new_position(const api::Session & session, const Eigen::MatrixXd& pressure_distribution, const Eigen::MatrixXd& wet_dry_matrix)
 {
     double dt, ctime;
@@ -1246,15 +1249,28 @@ void Module::calculate_new_position(const api::Session & session, const Eigen::M
 
     calculate_moment(session, pressure_distribution, wet_dry_matrix);
 
-	// -- External Force parameters
-    // Force is in N (kg·m/s²), mass is in kg, dt is in s
-    // Acceleration is in m/s², multiply by pw_to_m to convert to PW units/s²
-    // Velocity is stored in PW units/s (e.g., mm/s if PW uses mm)
-    double rad_to_deg = 57.2958;
-    AngularVelocity.emplace_back(AngularVelocity.back() + (TotalTorque.back() / m_settings.moment_of_inertia) * dt * rad_to_deg);
-	double new_Angle =  Angle.back() +  AngularVelocity.back() * dt;
-    Angle.emplace_back(new_Angle);
-    Time.emplace_back(ctime);
+    if(pile_is_broken){
+        double rad_to_deg = 57.2958;
+        AngularVelocity.emplace_back(AngularVelocity.back() + (TotalTorque.back() / m_settings.moment_of_inertia) * dt * rad_to_deg);
+        double new_Angle =  Angle.back() +  AngularVelocity.back() * dt;
+        Angle.emplace_back(new_Angle);
+        Time.emplace_back(ctime);
+    }
+    else{
+        if(TotalTorque.back()>m_settings.resistance_moment){
+            pile_is_broken = true;
+            double rad_to_deg = 57.2958;
+            AngularVelocity.emplace_back(AngularVelocity.back() + (TotalTorque.back() / m_settings.moment_of_inertia) * dt * rad_to_deg);
+            double new_Angle =  Angle.back() +  AngularVelocity.back() * dt;
+            Angle.emplace_back(new_Angle);
+            Time.emplace_back(ctime);
+        }
+        else{
+            AngularVelocity.emplace_back(0.0);
+            Angle.emplace_back(0.0);
+            Time.emplace_back(ctime);
+        }
+    }
 }
 
 void

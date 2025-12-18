@@ -673,7 +673,7 @@ void Module::main(const pw::api::Session& session)
     // 物体の移動を考慮して境界上の4n個の点を生成
     // Position is in PW units (mm/cm/m), convert to meters for pressure calculation
     double pw_to_m = get_pw_to_meters_conversion();
-    auto boundary_coords = generate_boundary_points(n, Position.back() / pw_to_m, 0.0);
+    auto boundary_coords = generate_boundary_points(n, 0.0, 0.0);
     std::cout << "Generated " << boundary_coords.size() << " boundary points" << std::endl;
     
     // 各境界点での圧力を計算
@@ -1221,10 +1221,10 @@ Module::set_node_position(const api::Session & session)
 	PW_SOLVER_get_delta_time(session.solver().handle(), &dtime);
         for (int i=0;i<session.nodes().size();i++) {
             if (session.nodes()[i].object_id()==m_settings.object_id) {
-         	    pw::api::Animation ani=session.nodes()[i].animation("transform.location",0); //移動についてX軸方向についてのアニメーション設定を取得
+         	    pw::api::Animation ani=session.nodes()[i].animation("transform.rotation",1); //回転についてY軸方向についてのアニメーション設定を取得
                 ani.x.emplace_back(ctime); // xに時間
-                ani.y.emplace_back(Position.back()); // yに座標
-   	            session.nodes()[i].animation("transform.location",0,ani);//位置を変更、X軸、移動の設定を入力
+                ani.y.emplace_back(Angle.back()); // yに角度
+   	            session.nodes()[i].animation("transform.rotation",1,ani);//回転を変更、Y軸、回転の設定を入力
 		        session.nodes()[i].update_motion(ctime);
 	        }
         }
@@ -1246,7 +1246,7 @@ Module::pretime_process(const api::Session & session)
 
     calculate_new_position(session, zero_pressure, dry_matrix);
 
-    std::cout << "Pretime process: No forces applied, Position=0.0, Velocity=0.0" << std::endl;
+    std::cout << "Pretime process: No moments applied, Angle=0.0, AngularVelocity=0.0" << std::endl;
 }
 
 void Module::save_force_history() const
@@ -1257,21 +1257,23 @@ void Module::save_force_history() const
         return;
     }
 
-    // Write header(Upliftforce is the total uplift force)
-    file << "Time,Externalforce_x,Upliftforce,Force,Position,Velocity" << std::endl;
+    // Write header for moment and overturning analysis
+    file << "Time,Externalforce_x,HorizontalTorque,Upliftforce,UpliftTorque,TotalTorque,Angle,AngularVelocity" << std::endl;
 
     // Write data
     for (size_t i = 0; i < Time.size(); ++i) {
         file << Time[i] << ","
              << (i < Externalforce_x.size() ? Externalforce_x[i] : 0.0) << ","
+             << (i < HorizontalTorque.size() ? HorizontalTorque[i] : 0.0) << ","
              << (i < Upliftforce.size() ? Upliftforce[i] : 0.0) << ","
-             << (i < Force.size() ? Force[i] : 0.0) << ","
-             << (i < Position.size() ? Position[i] : 0.0) << ","
-             << (i < Velocity.size() ? Velocity[i] : 0.0) << std::endl;
+             << (i < UpliftTorque.size() ? UpliftTorque[i] : 0.0) << ","
+             << (i < TotalTorque.size() ? TotalTorque[i] : 0.0) << ","
+             << (i < Angle.size() ? Angle[i] : 0.0) << ","
+             << (i < AngularVelocity.size() ? AngularVelocity[i] : 0.0) << std::endl;
     }
 
     file.close();
-    std::cout << "Force history saved to " << m_settings.force_history_output_file << " with " << Time.size() << " data points" << std::endl;
+    std::cout << "Moment history saved to " << m_settings.force_history_output_file << " with " << Time.size() << " data points" << std::endl;
 }
 
 void Module::save_pressure_grid(const Eigen::MatrixXd& pressure_distribution,

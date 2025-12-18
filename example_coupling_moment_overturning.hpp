@@ -130,7 +130,7 @@ public:
     void main(const pw::api::Session& session);
 
     // Step 1 in main loop :境界条件作成
-    std::vector<std::pair<double, double>> generate_boundary_points(int n, double deformation_x, double deformation_y);
+    std::vector<std::pair<double, double>> generate_boundary_points(int n, double dx, double dy, double dz, double dTheta_y);
     Eigen::MatrixXd create_pressure_matrix(const std::vector<double>& boundary_pressures, int n);
     // Compressed RHS: constructs RHS for wet points only with P=0 at wet-dry interface
     Eigen::VectorXd construct_rhs_vector(const Eigen::MatrixXd& boundary_matrix, int n,

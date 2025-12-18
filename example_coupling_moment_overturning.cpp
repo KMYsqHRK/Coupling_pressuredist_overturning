@@ -418,58 +418,102 @@ void Module::load_settings(const std::string& filename)
 }
 
 // 境界上の4n個の点を生成する関数
-// 回転移動の考慮はしていない
-std::vector<std::pair<double, double>> Module::generate_boundary_points(int n, double deformation_x, double deformation_y)
+std::vector<std::array<double, 3>> Module::generate_boundary_points(int n, double dx, double dy, double dz, double dTheta_y)
 {
-    std::vector<std::pair<double, double>> boundary_points;
-    
+    std::vector<std::array<double, 3>> boundary_points;
+
     if (m_settings.boundary_points.size() < 3) {
         std::cerr << "Error: Need at least 3 boundary points to define parallelogram" << std::endl;
         return boundary_points;
     }
-    
+
+    // Rotation center from settings
+    double cx = m_settings.rotation_center[0];
+    double cy = m_settings.rotation_center[1];
+    double cz = m_settings.rotation_center[2];
+
+    // Rotation matrix for Y-axis: R_y(θ) rotates in XZ plane
+    double cos_theta = std::cos(dTheta_y);
+    double sin_theta = std::sin(dTheta_y);
+
+    // Helper lambda to apply translation and rotation to a point
+    auto transform_point = [&](double x, double y, double z) -> std::array<double, 3> {
+        // First translate
+        double x_trans = x + dx;
+        double y_trans = y + dy;
+        double z_trans = z + dz;
+
+        // Then rotate around Y-axis about rotation center
+        // Y-axis rotation: x' = (x-cx)*cos(θ) - (z-cz)*sin(θ) + cx
+        //                  y' = y (unchanged)
+        //                  z' = (x-cx)*sin(θ) + (z-cz)*cos(θ) + cz
+        double x_rel = x_trans - cx;
+        double z_rel = z_trans - cz;
+
+        double x_final = x_rel * cos_theta - z_rel * sin_theta + cx;
+        double y_final = y_trans;
+        double z_final = x_rel * sin_theta + z_rel * cos_theta + cz;
+
+        return {x_final, y_final, z_final};
+    };
+
     // 3つの境界点から矩形（平行四辺形）を定義
-    double x1 = m_settings.boundary_points[0].x + deformation_x, y1 = m_settings.boundary_points[0].y + deformation_y;
-    double x2 = m_settings.boundary_points[1].x + deformation_x, y2 = m_settings.boundary_points[1].y + deformation_y; 
-    double x3 = m_settings.boundary_points[2].x + deformation_x, y3 = m_settings.boundary_points[2].y + deformation_y;
-    
+    double x1 = m_settings.boundary_points[0].x, y1 = m_settings.boundary_points[0].y, z1 = m_settings.boundary_points[0].z;
+    double x2 = m_settings.boundary_points[1].x, y2 = m_settings.boundary_points[1].y, z2 = m_settings.boundary_points[1].z;
+    double x3 = m_settings.boundary_points[2].x, y3 = m_settings.boundary_points[2].y, z3 = m_settings.boundary_points[2].z;
+
     // 4番目の点を計算（平行四辺形の対角点）
     double x4 = x2 + x3 - x1;
     double y4 = y2 + y3 - y1;
-    
+    double z4 = z2 + z3 - z1;
+
+    // Transform corner points
+    auto p1 = transform_point(x1, y1, z1);
+    auto p2 = transform_point(x2, y2, z2);
+    auto p3 = transform_point(x3, y3, z3);
+    auto p4 = transform_point(x4, y4, z4);
+
     // 各辺でn個の点を生成（4辺で4n個）
-    // 辺1: (x1,y1) -> (x2,y2)
+    // 辺1: p1 -> p2
     for (int i = 0; i < n; i++) {
         double t = (double)i / n;
-        double x = x1 + t * (x2 - x1);
-        double y = y1 + t * (y2 - y1);
-        boundary_points.push_back({x, y});
+        boundary_points.push_back({
+            p1[0] + t * (p2[0] - p1[0]),
+            p1[1] + t * (p2[1] - p1[1]),
+            p1[2] + t * (p2[2] - p1[2])
+        });
     }
-    
-    // 辺2: (x2,y2) -> (x4,y4)
+
+    // 辺2: p2 -> p4
     for (int i = 0; i < n; i++) {
         double t = (double)i / n;
-        double x = x2 + t * (x4 - x2);
-        double y = y2 + t * (y4 - y2);
-        boundary_points.push_back({x, y});
+        boundary_points.push_back({
+            p2[0] + t * (p4[0] - p2[0]),
+            p2[1] + t * (p4[1] - p2[1]),
+            p2[2] + t * (p4[2] - p2[2])
+        });
     }
-    
-    // 辺3: (x4,y4) -> (x3,y3)
+
+    // 辺3: p4 -> p3
     for (int i = 0; i < n; i++) {
         double t = (double)i / n;
-        double x = x4 + t * (x3 - x4);
-        double y = y4 + t * (y3 - y4);
-        boundary_points.push_back({x, y});
+        boundary_points.push_back({
+            p4[0] + t * (p3[0] - p4[0]),
+            p4[1] + t * (p3[1] - p4[1]),
+            p4[2] + t * (p3[2] - p4[2])
+        });
     }
-    
-    // 辺4: (x3,y3) -> (x1,y1)
+
+    // 辺4: p3 -> p1
     for (int i = 0; i < n; i++) {
         double t = (double)i / n;
-        double x = x3 + t * (x1 - x3);
-        double y = y3 + t * (y1 - y3);
-        boundary_points.push_back({x, y});
+        boundary_points.push_back({
+            p3[0] + t * (p1[0] - p3[0]),
+            p3[1] + t * (p1[1] - p3[1]),
+            p3[2] + t * (p1[2] - p3[2])
+        });
     }
-    
+
     return boundary_points;
 }
 
@@ -632,7 +676,7 @@ void Module::main(const pw::api::Session& session)
     }
 
     if (!m_original_boundary_coords_initialized) {
-        m_original_boundary_coords = generate_boundary_points(n, 0.0, 0.0);
+        m_original_boundary_coords = generate_boundary_points(n, 0.0, 0.0, 0.0, 0.0);
         m_original_boundary_coords_initialized = true;
     }
 
@@ -673,7 +717,7 @@ void Module::main(const pw::api::Session& session)
     // 物体の移動を考慮して境界上の4n個の点を生成
     // Position is in PW units (mm/cm/m), convert to meters for pressure calculation
     double pw_to_m = get_pw_to_meters_conversion();
-    auto boundary_coords = generate_boundary_points(n, 0.0, 0.0);
+    auto boundary_coords = generate_boundary_points(n, 0.0, 0.0, 0.0, Angle.back()/57.2958);
     std::cout << "Generated " << boundary_coords.size() << " boundary points" << std::endl;
     
     // 各境界点での圧力を計算

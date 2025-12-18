@@ -5,9 +5,8 @@
 
 #include "sdk/particleworks_api.hpp"
 #include "example_module.hpp"
-#include "example_coupling_friction_sliding.hpp"
+#include "example_coupling_moment_overturning.hpp"
 
-// よくわからない事、ループ処理されていることは明示的にしなくてもよいのはわかるが、何秒毎に処理を行うかはどこで決しているのか
 int main(int argc, char * argv[])
 {
     auto start_time = std::chrono::high_resolution_clock::now();

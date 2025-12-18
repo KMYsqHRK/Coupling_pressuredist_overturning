@@ -5,7 +5,7 @@
 #include <cmath>
 #include <limits>
 #include "nlohmann/single_include/nlohmann/json.hpp"
-#include "example_coupling_friction_sliding.hpp"
+#include "example_coupling_moment_overturning.hpp"
 
 using json = nlohmann::json;
 
@@ -1394,6 +1394,7 @@ void Module::initialize_grid_coordinates(int n, double lattice_x, double lattice
 }
 
 // Initialize distance matrix from rotation center to each pressure measurement point
+// calculate_moment_arm
 void Module::initialize_distance_matrix(int n)
 {
     if (m_distance_matrix_initialized && m_cached_n == n) {
@@ -1421,9 +1422,7 @@ void Module::initialize_distance_matrix(int n)
 
             // Calculate 3D Euclidean distance
             double dx = point_x - rotation_center_x;
-            double dy = point_y - rotation_center_y;
-            double dz = point_z - rotation_center_z;
-            double distance = std::sqrt(dx * dx + dy * dy + dz * dz);
+            double distance = std::abs(dx);
 
             m_distance_matrix(i, j) = distance;
         }

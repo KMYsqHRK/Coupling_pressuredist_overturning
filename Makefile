@@ -6,7 +6,7 @@ CXXFLAGS += -I./third_party
 
 SOURCES =  example.cpp
 SOURCES += example_module.cpp
-SOURCES += example_coupling_friction_sliding.cpp
+SOURCES += example_coupling_moment_overturning.cpp
 
 OBJ_DIR = obj
 OBJECTS = $(patsubst %.cpp,$(OBJ_DIR)/%.o,$(SOURCES))

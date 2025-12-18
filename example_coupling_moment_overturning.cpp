@@ -1204,28 +1204,54 @@ void Module::calculate_moment(const pw::api::Session & session, const Eigen::Mat
     }
 
     // Calculate gravity moment (weight acting at center of gravity)
+    // This changes as the object rotates around the Y-axis
     double total_weight = m_settings.mass * m_settings.gravity[2];
     double cog_x = m_settings.center_of_gravity[0];
     double cog_y = m_settings.center_of_gravity[1];
+    double cog_z = m_settings.center_of_gravity[2];
     double rotation_x = m_settings.rotation_center[0];
     double rotation_y = m_settings.rotation_center[1];
+    double rotation_z = m_settings.rotation_center[2];
 
-    // Moment arm from rotation center to center of gravity
-    double gravity_moment_arm = std::abs(cog_x - rotation_x);
+    // Get current rotation angle (convert from degrees to radians)
+    double current_angle_deg = Angle.back();
+    double current_angle_rad = current_angle_deg / 57.2958;  // degrees to radians
+
+    // Calculate rotated position of center of gravity around Y-axis
+    // Rotation around Y-axis: x' = (x-cx)*cos(θ) - (z-cz)*sin(θ) + cx
+    //                         z' = (x-cx)*sin(θ) + (z-cz)*cos(θ) + cz
+    double cos_theta = std::cos(current_angle_rad);
+    double sin_theta = std::sin(current_angle_rad);
+
+    double cog_x_rel = cog_x - rotation_x;
+    double cog_z_rel = cog_z - rotation_z;
+
+    double cog_x_rotated = cog_x_rel * cos_theta - cog_z_rel * sin_theta + rotation_x;
+    double cog_z_rotated = cog_x_rel * sin_theta + cog_z_rel * cos_theta + rotation_z;
+
+    // Moment arm from rotation center to rotated center of gravity (X-direction)
+    // For gravity acting downward (Z-direction) causing rotation around Y-axis,
+    // the moment arm is the horizontal distance in X-direction
+    double gravity_moment_arm = std::abs(cog_x_rotated - rotation_x);
     double gravity_moment = total_weight * gravity_moment_arm;
 
     // Net moment (pressure moment - gravity moment + resistance moment)
     // Positive moment tends to overturn, negative moment stabilizes
     double net_moment = pressure_moment + atorque[1]  - gravity_moment;
 
-    // Store uplift force for history
+    // Store uplift force and moments for history
     Upliftforce.emplace_back(total_pressure_force);
     UpliftTorque.emplace_back(pressure_moment);
+    GravityTorque.emplace_back(gravity_moment);
     TotalTorque.emplace_back(net_moment);
 
     std::cout << "=== Moment and Overturning Analysis ===" << std::endl;
+    std::cout << "Current rotation angle: " << current_angle_deg << " degrees" << std::endl;
+    std::cout << "Rotated CoG position: (" << cog_x_rotated << ", " << cog_y << ", " << cog_z_rotated << ")" << std::endl;
+    std::cout << "Gravity moment arm: " << gravity_moment_arm << " m" << std::endl;
     std::cout << "Total pressure force (uplift): " << total_pressure_force << " N" << std::endl;
     std::cout << "Pressure moment (overturning): " << pressure_moment << " N·m" << std::endl;
+    std::cout << "Horizontal torque from API: " << atorque[1] << " N·m" << std::endl;
     std::cout << "Gravity moment (stabilizing): " << gravity_moment << " N·m" << std::endl;
     std::cout << "Resistance moment (piles): " << m_settings.resistance_moment << " N·m" << std::endl;
     std::cout << "Net moment: " << net_moment << " N·m" << std::endl;
@@ -1318,7 +1344,7 @@ void Module::save_force_history() const
     }
 
     // Write header for moment and overturning analysis
-    file << "Time,Externalforce_x,HorizontalTorque,Upliftforce,UpliftTorque,TotalTorque,Angle,AngularVelocity" << std::endl;
+    file << "Time,Externalforce_x,HorizontalTorque,Upliftforce,UpliftTorque,GravityTorque,TotalTorque,Angle,AngularVelocity" << std::endl;
 
     // Write data
     for (size_t i = 0; i < Time.size(); ++i) {
@@ -1327,6 +1353,7 @@ void Module::save_force_history() const
              << (i < HorizontalTorque.size() ? HorizontalTorque[i] : 0.0) << ","
              << (i < Upliftforce.size() ? Upliftforce[i] : 0.0) << ","
              << (i < UpliftTorque.size() ? UpliftTorque[i] : 0.0) << ","
+             << (i < GravityTorque.size() ? GravityTorque[i] : 0.0) << ","
              << (i < TotalTorque.size() ? TotalTorque[i] : 0.0) << ","
              << (i < Angle.size() ? Angle[i] : 0.0) << ","
              << (i < AngularVelocity.size() ? AngularVelocity[i] : 0.0) << std::endl;

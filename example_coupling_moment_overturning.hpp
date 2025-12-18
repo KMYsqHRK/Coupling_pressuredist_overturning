@@ -90,6 +90,7 @@ private:
     std::vector<double>  Upliftforce;
     std::vector<double>  UpliftTorque;
     std::vector<double>  HorizontalTorque;
+    std::vector<double>  GravityTorque;
     std::vector<double>  TotalTorque;
 	std::vector<double>  Angle;
 	std::vector<double>  AngularVelocity;
@@ -103,6 +104,7 @@ public:
         Upliftforce.push_back(0.0);
         UpliftTorque.push_back(0.0);
         HorizontalTorque.push_back(0.0);
+        GravityTorque.push_back(0.0);
         TotalTorque.push_back(0.0);
         Angle.push_back(0.0);
         AngularVelocity.push_back(0.0);

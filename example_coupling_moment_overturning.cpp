@@ -1207,10 +1207,10 @@ void Module::calculate_new_position(const api::Session & session, const Eigen::M
     // Force is in N (kg·m/s²), mass is in kg, dt is in s
     // Acceleration is in m/s², multiply by pw_to_m to convert to PW units/s²
     // Velocity is stored in PW units/s (e.g., mm/s if PW uses mm)
-    double pw_to_m = get_pw_to_meters_conversion();
-    Velocity.emplace_back(Velocity.back() + (Force.back() / m_settings.mass) * dt * pw_to_m);
-	double new_Position =  Position.back() +  Velocity.back() * dt;
-    Position.emplace_back(new_Position);
+    double rad_to_deg = 57.2958;
+    AngularVelocity.emplace_back(AngularVelocity.back() + (TotalTorque.back() / m_settings.moment_of_inertia) * dt * rad_to_deg);
+	double new_Angle =  Angle.back() +  AngularVelocity.back() * dt;
+    Angle.emplace_back(new_Angle);
     Time.emplace_back(ctime);
 }
 

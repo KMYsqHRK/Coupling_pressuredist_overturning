@@ -1118,6 +1118,7 @@ void Module::calculate_moment(const pw::api::Session & session, const Eigen::Mat
     PW_DF_get_load(session.distance_fields()[m_settings.DF_index].handle(),PW_LOAD_sum_c,aload,atorque);
 
     Externalforce_x.emplace_back(aload[0]);
+    HorizontalTorque.emplace_back(atorque[1]);
 
     // Grid parameters
     int n = m_settings.division_number;
@@ -1171,14 +1172,12 @@ void Module::calculate_moment(const pw::api::Session & session, const Eigen::Mat
 
     // Net moment (pressure moment - gravity moment + resistance moment)
     // Positive moment tends to overturn, negative moment stabilizes
-    double net_moment = pressure_moment - gravity_moment + m_settings.resistance_moment;
+    double net_moment = pressure_moment + atorque[1]  - gravity_moment;
 
     // Store uplift force for history
     Upliftforce.emplace_back(total_pressure_force);
-
-    // For now, set Force to zero (moment-based analysis doesn't use linear force)
-    // The net moment determines stability, not linear motion
-    Force.emplace_back(0.0);
+    UpliftTorque.emplace_back(pressure_moment);
+    TotalTorque.emplace_back(net_moment);
 
     std::cout << "=== Moment and Overturning Analysis ===" << std::endl;
     std::cout << "Total pressure force (uplift): " << total_pressure_force << " N" << std::endl;

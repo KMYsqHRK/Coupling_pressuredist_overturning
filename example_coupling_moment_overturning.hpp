@@ -68,7 +68,7 @@ private:
     Eigen::MatrixXd m_grid_coords; // Grid coordinates for pressure point
     bool m_grid_coords_initialized;
 
-    std::vector<std::pair<double, double>> m_original_boundary_coords; // Boundary point coordinates (x,y)
+    std::vector<std::array<double, 3>> m_original_boundary_coords; // Boundary point coordinates (x,y)
     bool m_original_boundary_coords_initialized;
 
     // Distance matrix from rotation center to pressure points
@@ -130,7 +130,7 @@ public:
     void main(const pw::api::Session& session);
 
     // Step 1 in main loop :境界条件作成
-    std::vector<std::pair<double, double>> generate_boundary_points(int n, double dx, double dy, double dz, double dTheta_y);
+    std::vector<std::array<double, 3>> generate_boundary_points(int n, double dx, double dy, double dz, double dTheta_y);
     Eigen::MatrixXd create_pressure_matrix(const std::vector<double>& boundary_pressures, int n);
     // Compressed RHS: constructs RHS for wet points only with P=0 at wet-dry interface
     Eigen::VectorXd construct_rhs_vector(const Eigen::MatrixXd& boundary_matrix, int n,

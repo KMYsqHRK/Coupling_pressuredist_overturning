@@ -728,7 +728,7 @@ void Module::main(const pw::api::Session& session)
     
     for (const auto& point : boundary_coords) {
         double pressure = calculate_pressure_at_point(
-            session, point.first, point.second, z,
+            session, point[0], point[1], point[2],
             m_settings.measurement_radius, m_settings.DF_index);
         boundary_pressures.push_back(pressure);
     }

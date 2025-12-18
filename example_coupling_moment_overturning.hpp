@@ -29,13 +29,16 @@ struct Settings {
     double hydraulic_conductivity;//ダルシー則のための透水係数
     double kinematic_viscosity_coefficient;//動粘性係数
     
-    // for friction calculation
+    // for moment and overturning calculation
     int object_id;
     double FSI_enabled;
     int window_size;
-    double mass, static_friction, dynamic_friction, wet_static_friction, wet_dynamic_friction; 
-    double gravity[3]; 
+    double mass;
+    double gravity[3];
     double rotation_center[3];
+    double center_of_gravity[3];
+    double moment_of_inertia;  // Moment of inertia around rotation center
+    double resistance_moment;   // Resistance moment by piles
     
     // for force history
     std::string force_history_output_file;
@@ -83,9 +86,10 @@ private:
 
 	std::vector<double>  Externalforce_x;
     std::vector<double>  Upliftforce;
-	std::vector<double>  Force;
-	std::vector<double>  Position;
-	std::vector<double>  Velocity;
+    std::vector<double>  UpliftTorque;
+    std::vector<double>  HorizontalTorque;
+	std::vector<double>  Angle;
+	std::vector<double>  AngularVelocity;
 	std::vector<double>  Time;
 
 public:
@@ -94,9 +98,10 @@ public:
                m_wet_dry_matrix_initialized(false), m_grid_infil_distance_initialized(false) {
         Externalforce_x.push_back(0.0);
         Upliftforce.push_back(0.0);
-        Force.push_back(0.0);
-        Position.push_back(0.0);
-        Velocity.push_back(0.0);
+        UpliftTorque.push_back(0.0);
+        HorizontalTorque.push_back(0.0);
+        Angle.push_back(0.0);
+        AngularVelocity.push_back(0.0);
         Time.push_back(0.0);
     }
     
@@ -139,8 +144,8 @@ public:
     // step 3 : Update wet-dry matrix
     void update_wet_dry_matrix(const pw::api::Session & session, const std::vector<double>& boundary_pressures);
 
-    // Step 5 in main loop :圧力分布から直接摩擦力を計算
-    void calculate_friction(const pw::api::Session & session, const Eigen::MatrixXd& pressure_distribution, const Eigen::MatrixXd& wet_dry_matrix);
+    // Step 5 in main loop :圧力分布からモーメントを計算
+    void calculate_moment(const pw::api::Session & session, const Eigen::MatrixXd& pressure_distribution, const Eigen::MatrixXd& wet_dry_matrix);
     void calculate_new_position(const pw::api::Session & session, const Eigen::MatrixXd& pressure_distribution, const Eigen::MatrixXd& wet_dry_matrix);
 
     // Step 6 in main loop :運動方程式より与えられる速度からノードの位置を更新

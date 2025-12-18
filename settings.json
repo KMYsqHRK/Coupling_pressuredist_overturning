@@ -1,5 +1,5 @@
 {
-    "description": "sliding object simulation with pressure distribution solver",
+    "description": "building overturning simulation with pressure distribution and moment analysis",
     "output_file": "force_history.csv",
     "log_interval": 10,
     "df_index": 2,
@@ -44,10 +44,13 @@
     "physics": {
         "mass": 2.541,
         "height": 5,
-        "static_friction": 0.913,
-        "dynamic_friction": 0.769,
-        "wet_static_friction": 0.913,
-        "wet_dynamic_friction": 0.769
+        "moment_of_inertia": 1.0,
+        "resistance_moment": 0.0,
+        "center_of_gravity": {
+            "x": 0.16,
+            "y": 0.21,
+            "z": 0.20
+        }
     },
     "gravity": {
         "x": 0.0,
@@ -73,7 +76,7 @@
     "force_history": {
         "output_file": "force_history.csv",
         "save_interval": 1,
-        "description": "Force history output configuration - saves API_Force_Z, Pressure_Force_Z, Pressure_Torque_Y, Net_Force_Z, Position_Z, Velocity_Z with time. API_Force_Z is from ParticleWorks API, Pressure_Force_Z is buoyancy from pressure distribution."
+        "description": "Force and moment history output configuration - saves time, external forces, uplift force from pressure, moments, position, and velocity. Used for overturning analysis."
     },
     "pressure_grid_export": {
         "output_file": "pressure_grid.csv",

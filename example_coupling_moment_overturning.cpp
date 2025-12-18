@@ -118,16 +118,12 @@ void Module::load_settings(const std::string& filename)
     m_settings.exclude_ghost_particles = true;
     m_settings.calculation_start_time = 0.0;
     
-    // Friction calculation defaults
+    // Moment and overturning calculation defaults
     m_settings.object_id = 0;
     m_settings.FSI_enabled = 1.0;
     m_settings.window_size = 1;
     m_settings.mass = 1.0;
-    m_settings.static_friction = 0.5;
-    m_settings.dynamic_friction = 0.3;
-    m_settings.wet_static_friction = 0.45;
-    m_settings.wet_dynamic_friction = 0.25;
-    
+
     // Gravity defaults (standard Earth gravity in z-direction)
     m_settings.gravity[0] = 0.0;
     m_settings.gravity[1] = 0.0;
@@ -137,6 +133,15 @@ void Module::load_settings(const std::string& filename)
     m_settings.rotation_center[0] = 0.0; // x
     m_settings.rotation_center[1] = 0.0; // y
     m_settings.rotation_center[2] = 0.0; // z
+
+    // Center of gravity defaults
+    m_settings.center_of_gravity[0] = 0.0; // x
+    m_settings.center_of_gravity[1] = 0.0; // y
+    m_settings.center_of_gravity[2] = 0.0; // z
+
+    // Moment of inertia and resistance moment defaults
+    m_settings.moment_of_inertia = 1.0;    // kg·m^2
+    m_settings.resistance_moment = 0.0;    // N·m
     
     // Force history defaults
     m_settings.force_history_output_file = "force_history.csv";
@@ -233,25 +238,34 @@ void Module::load_settings(const std::string& filename)
         // 物理パラメータ設定
         if (config.contains("physics")) {
             const auto& physics_config = config["physics"];
-            
+
             if (physics_config.contains("mass")) {
                 m_settings.mass = physics_config["mass"];
             }
-            
-            if (physics_config.contains("static_friction")) {
-                m_settings.static_friction = physics_config["static_friction"];
-            }
-            
-            if (physics_config.contains("dynamic_friction")) {
-                m_settings.dynamic_friction = physics_config["dynamic_friction"];
+
+            if (physics_config.contains("moment_of_inertia")) {
+                m_settings.moment_of_inertia = physics_config["moment_of_inertia"];
             }
 
-            if (physics_config.contains("wet_static_friction")) {
-                m_settings.wet_static_friction = physics_config["wet_static_friction"];
+            if (physics_config.contains("resistance_moment")) {
+                m_settings.resistance_moment = physics_config["resistance_moment"];
             }
 
-            if (physics_config.contains("wet_dynamic_friction")) {
-                m_settings.wet_dynamic_friction = physics_config["wet_dynamic_friction"];
+            // Center of gravity
+            if (physics_config.contains("center_of_gravity")) {
+                const auto& cog_config = physics_config["center_of_gravity"];
+
+                if (cog_config.contains("x")) {
+                    m_settings.center_of_gravity[0] = cog_config["x"];
+                }
+
+                if (cog_config.contains("y")) {
+                    m_settings.center_of_gravity[1] = cog_config["y"];
+                }
+
+                if (cog_config.contains("z")) {
+                    m_settings.center_of_gravity[2] = cog_config["z"];
+                }
             }
         }
         
@@ -384,11 +398,11 @@ void Module::load_settings(const std::string& filename)
         std::cout << "  FSI enabled: " << m_settings.FSI_enabled << std::endl;
         std::cout << "  Window size: " << m_settings.window_size << std::endl;
         std::cout << "  Mass: " << m_settings.mass << " kg" << std::endl;
-        std::cout << "  Static friction (dry): " << m_settings.static_friction << std::endl;
-        std::cout << "  Dynamic friction (dry): " << m_settings.dynamic_friction << std::endl;
-        std::cout << "  Static friction (wet): " << m_settings.wet_static_friction << std::endl;
-        std::cout << "  Dynamic friction (wet): " << m_settings.wet_dynamic_friction << std::endl;
+        std::cout << "  Moment of inertia: " << m_settings.moment_of_inertia << " kg·m^2" << std::endl;
+        std::cout << "  Resistance moment: " << m_settings.resistance_moment << " N·m" << std::endl;
         std::cout << "  Gravity: (" << m_settings.gravity[0] << ", " << m_settings.gravity[1] << ", " << m_settings.gravity[2] << ") m/s^2" << std::endl;
+        std::cout << "  Rotation center: (" << m_settings.rotation_center[0] << ", " << m_settings.rotation_center[1] << ", " << m_settings.rotation_center[2] << ")" << std::endl;
+        std::cout << "  Center of gravity: (" << m_settings.center_of_gravity[0] << ", " << m_settings.center_of_gravity[1] << ", " << m_settings.center_of_gravity[2] << ")" << std::endl;
         std::cout << "  Force history output file: " << m_settings.force_history_output_file << std::endl;
         std::cout << "  Force history save interval: " << m_settings.force_history_save_interval << std::endl;
         std::cout << "  Pressure grid output file: " << m_settings.pressure_grid_output_file << std::endl;
@@ -1096,20 +1110,14 @@ Eigen::MatrixXd Module::solve_pressure_distribution(const Eigen::MatrixXd& bound
     return pressure_matrix;
 }
 
-
-void Module::calculate_friction(const pw::api::Session & session, const Eigen::MatrixXd& pressure_distribution, const Eigen::MatrixXd& wet_dry_matrix){
-    // Calculate friction force directly from pressure distribution at each grid point
-    const double eps = 1e-2; // mm/s
-    double velocity = Velocity.back();
+void Module::calculate_moment(const pw::api::Session & session, const Eigen::MatrixXd& pressure_distribution, const Eigen::MatrixXd& wet_dry_matrix){
+    // Calculate moments from pressure distribution for overturning analysis
     double aload[3];
     double atorque[3];
 
     PW_DF_get_load(session.distance_fields()[m_settings.DF_index].handle(),PW_LOAD_sum_c,aload,atorque);
 
     Externalforce_x.emplace_back(aload[0]);
-
-    double uplift_force = 0; // total uplift force
-    double current_x = calculateWindowAverage(Externalforce_x, m_settings.window_size);
 
     // Grid parameters
     int n = m_settings.division_number;
@@ -1118,76 +1126,72 @@ void Module::calculate_friction(const pw::api::Session & session, const Eigen::M
     double dx = lattice_x / n;
     double dy = lattice_y / n;
     double area_element = dx * dy;
-    double total_weight = m_settings.mass * m_settings.gravity[2];
 
     int rows = pressure_distribution.rows();
     int cols = pressure_distribution.cols();
 
-    // Calculate total friction force directly from pressure distribution
-    double total_static_friction = 0.0;
-    double total_dynamic_friction = 0.0;
+    // Calculate total uplift force and moment from pressure distribution
+    double total_pressure_force = 0.0;
+    double pressure_moment = 0.0;  // Moment from pressure around rotation center
 
     for (int i = 0; i < rows; ++i) {
         for (int j = 0; j < cols; ++j) {
             double weight = 1.0;
 
-            // Apply trapezoidal rule weights
+            // Apply trapezoidal rule weights for numerical integration
             if ((i == 0 || i == rows - 1) && (j == 0 || j == cols - 1)) {
                 weight = 0.25;  // Corner points
             } else if (i == 0 || i == rows - 1 || j == 0 || j == cols - 1) {
                 weight = 0.5;   // Edge points
             }
 
-            // Calculate local normal force at this grid point (weight - uplift pressure)
-            double default_normal = total_weight / (lattice_x * lattice_y);
-            double local_normal = std::max(0.0, default_normal - pressure_distribution(i, j)) * area_element * weight;
-            uplift_force += pressure_distribution(i, j) * area_element * weight;
+            // Calculate pressure force at this point
+            double local_pressure_force = pressure_distribution(i, j) * area_element * weight;
+            total_pressure_force += local_pressure_force;
 
-            // Determine friction coefficient based on wet/dry state
-            double local_static_friction, local_dynamic_friction;
-            if (wet_dry_matrix(i, j) > 0.5) {
-                // Wet point
-                local_static_friction = m_settings.wet_static_friction;
-                local_dynamic_friction = m_settings.wet_dynamic_friction;
-            } else {
-                // Dry point
-                local_static_friction = m_settings.static_friction;
-                local_dynamic_friction = m_settings.dynamic_friction;
-            }
+            // Calculate moment arm (distance from rotation center to this point)
+            // Using the distance matrix that was calculated during initialization
+            double moment_arm = m_distance_matrix(i, j);
 
-            // Calculate friction force contribution at this grid point
-            total_static_friction += local_normal * local_static_friction;
-            total_dynamic_friction += local_normal * local_dynamic_friction;
+            // Pressure creates upward force, moment is force × distance
+            pressure_moment += local_pressure_force * moment_arm;
         }
     }
 
-    // Determine friction force based on motion state
-    double friction_force;
-    if (std::abs(velocity) < eps) {
-        // Static state - friction balances applied force up to static limit
-        if (total_static_friction > std::abs(current_x)) {
-            friction_force = current_x;
-            Velocity.back() = 0.0; // Set velocity to 0
-        }
-        else {
-            // Friction reaches static limit, object will start moving
-            friction_force = (current_x >= 0) ? total_static_friction : -total_static_friction;
-        }
-    }
-    else {
-        // Dynamic state - friction opposes motion
-        friction_force = (velocity >= 0) ? total_dynamic_friction : -total_dynamic_friction;
-    }
+    // Calculate gravity moment (weight acting at center of gravity)
+    double total_weight = m_settings.mass * m_settings.gravity[2];
+    double cog_x = m_settings.center_of_gravity[0];
+    double cog_y = m_settings.center_of_gravity[1];
+    double rotation_x = m_settings.rotation_center[0];
+    double rotation_y = m_settings.rotation_center[1];
 
-    // Store normal force for history
-    std::cout << "Total static friction capacity: " << total_static_friction << " N" << std::endl;
-    std::cout << "Total dynamic friction: " << total_dynamic_friction << " N" << std::endl;
-    std::cout << "Current external force (X): " << current_x << " N" << std::endl;
-    std::cout << "Applied friction force: " << friction_force << " N" << std::endl;
+    // Moment arm from rotation center to center of gravity
+    double gravity_moment_arm = std::abs(cog_x - rotation_x);
+    double gravity_moment = total_weight * gravity_moment_arm;
+
+    // Net moment (pressure moment - gravity moment + resistance moment)
+    // Positive moment tends to overturn, negative moment stabilizes
+    double net_moment = pressure_moment - gravity_moment + m_settings.resistance_moment;
 
     // Store uplift force for history
-    Upliftforce.emplace_back(uplift_force);
-    Force.emplace_back((current_x - friction_force) * m_settings.FSI_enabled); //外力を設定
+    Upliftforce.emplace_back(total_pressure_force);
+
+    // For now, set Force to zero (moment-based analysis doesn't use linear force)
+    // The net moment determines stability, not linear motion
+    Force.emplace_back(0.0);
+
+    std::cout << "=== Moment and Overturning Analysis ===" << std::endl;
+    std::cout << "Total pressure force (uplift): " << total_pressure_force << " N" << std::endl;
+    std::cout << "Pressure moment (overturning): " << pressure_moment << " N·m" << std::endl;
+    std::cout << "Gravity moment (stabilizing): " << gravity_moment << " N·m" << std::endl;
+    std::cout << "Resistance moment (piles): " << m_settings.resistance_moment << " N·m" << std::endl;
+    std::cout << "Net moment: " << net_moment << " N·m" << std::endl;
+    if (net_moment > 0) {
+        std::cout << "WARNING: Positive net moment - building may overturn!" << std::endl;
+    } else {
+        std::cout << "Building is stable (negative net moment)" << std::endl;
+    }
+    std::cout << "========================================" << std::endl;
 }
 
 
@@ -1197,7 +1201,7 @@ void Module::calculate_new_position(const api::Session & session, const Eigen::M
 	PW_SOLVER_get_delta_time(session.solver().handle(), &dt);
     PW_SOLVER_get_current_time(session.solver().handle(), &ctime);
 
-    calculate_friction(session, pressure_distribution, wet_dry_matrix);
+    calculate_moment(session, pressure_distribution, wet_dry_matrix);
 
 	// -- External Force parameters
     // Force is in N (kg·m/s²), mass is in kg, dt is in s

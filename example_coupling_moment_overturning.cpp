@@ -450,9 +450,9 @@ std::vector<std::array<double, 3>> Module::generate_boundary_points(int n, doubl
         double x_rel = x_trans - cx;
         double z_rel = z_trans - cz;
 
-        double x_final = x_rel * cos_theta - z_rel * sin_theta + cx;
+        double x_final = x_rel * cos_theta + z_rel * sin_theta + cx;
         double y_final = y_trans;
-        double z_final = x_rel * sin_theta + z_rel * cos_theta + cz;
+        double z_final = -x_rel * sin_theta + z_rel * cos_theta + cz;
 
         return {x_final, y_final, z_final};
     };
@@ -1226,18 +1226,16 @@ void Module::calculate_moment(const pw::api::Session & session, const Eigen::Mat
     double cog_x_rel = cog_x - rotation_x;
     double cog_z_rel = cog_z - rotation_z;
 
-    double cog_x_rotated = cog_x_rel * cos_theta - cog_z_rel * sin_theta + rotation_x;
-    double cog_z_rotated = cog_x_rel * sin_theta + cog_z_rel * cos_theta + rotation_z;
+    double cog_x_rotated = cog_x_rel * cos_theta + cog_z_rel * sin_theta;
 
     // Moment arm from rotation center to rotated center of gravity (X-direction)
     // For gravity acting downward (Z-direction) causing rotation around Y-axis,
     // the moment arm is the horizontal distance in X-direction
-    double gravity_moment_arm = std::abs(cog_x_rotated - rotation_x);
-    double gravity_moment = total_weight * gravity_moment_arm;
+    double gravity_moment = total_weight * cog_x_rotated;
 
     // Net moment (pressure moment - gravity moment + resistance moment)
     // Positive moment tends to overturn, negative moment stabilizes
-    double net_moment = pressure_moment + atorque[1]  - gravity_moment;
+    double net_moment = pressure_moment + atorque[1]  + gravity_moment;
 
     // Store uplift force and moments for history
     Upliftforce.emplace_back(total_pressure_force);
@@ -1247,8 +1245,6 @@ void Module::calculate_moment(const pw::api::Session & session, const Eigen::Mat
 
     std::cout << "=== Moment and Overturning Analysis ===" << std::endl;
     std::cout << "Current rotation angle: " << current_angle_deg << " degrees" << std::endl;
-    std::cout << "Rotated CoG position: (" << cog_x_rotated << ", " << cog_y << ", " << cog_z_rotated << ")" << std::endl;
-    std::cout << "Gravity moment arm: " << gravity_moment_arm << " m" << std::endl;
     std::cout << "Total pressure force (uplift): " << total_pressure_force << " N" << std::endl;
     std::cout << "Pressure moment (overturning): " << pressure_moment << " N·m" << std::endl;
     std::cout << "Horizontal torque from API: " << atorque[1] << " N·m" << std::endl;

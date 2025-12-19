@@ -1273,8 +1273,19 @@ void Module::calculate_new_position(const api::Session & session, const Eigen::M
 
     if(pile_is_broken){
         double rad_to_deg = 57.2958;
-        AngularVelocity.emplace_back(AngularVelocity.back() + (TotalTorque.back() / m_settings.moment_of_inertia) * dt * rad_to_deg);
-        double new_Angle =  Angle.back() +  AngularVelocity.back() * dt;
+        double new_angular_velocity = AngularVelocity.back() + (TotalTorque.back() / m_settings.moment_of_inertia) * dt * rad_to_deg;
+        double new_Angle =  Angle.back() +  new_angular_velocity * dt;
+
+        // Clamp angle to 0-90 degrees range
+        if (new_Angle < 0.0) {
+            new_Angle = 0.0;
+            new_angular_velocity = 0.0;  // Stop rotation at lower bound
+        } else if (new_Angle > 90.0) {
+            new_Angle = 90.0;
+            new_angular_velocity = 0.0;  // Stop rotation at upper bound
+        }
+
+        AngularVelocity.emplace_back(new_angular_velocity);
         Angle.emplace_back(new_Angle);
         Time.emplace_back(ctime);
     }
@@ -1282,8 +1293,19 @@ void Module::calculate_new_position(const api::Session & session, const Eigen::M
         if(TotalTorque.back()>m_settings.resistance_moment){
             pile_is_broken = true;
             double rad_to_deg = 57.2958;
-            AngularVelocity.emplace_back(AngularVelocity.back() + (TotalTorque.back() / m_settings.moment_of_inertia) * dt * rad_to_deg);
-            double new_Angle =  Angle.back() +  AngularVelocity.back() * dt;
+            double new_angular_velocity = AngularVelocity.back() + (TotalTorque.back() / m_settings.moment_of_inertia) * dt * rad_to_deg;
+            double new_Angle =  Angle.back() +  new_angular_velocity * dt;
+
+            // Clamp angle to 0-90 degrees range
+            if (new_Angle < 0.0) {
+                new_Angle = 0.0;
+                new_angular_velocity = 0.0;  // Stop rotation at lower bound
+            } else if (new_Angle > 90.0) {
+                new_Angle = 90.0;
+                new_angular_velocity = 0.0;  // Stop rotation at upper bound
+            }
+
+            AngularVelocity.emplace_back(new_angular_velocity);
             Angle.emplace_back(new_Angle);
             Time.emplace_back(ctime);
         }

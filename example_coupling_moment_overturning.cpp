@@ -1231,7 +1231,7 @@ void Module::calculate_moment(const pw::api::Session & session, const Eigen::Mat
     // Moment arm from rotation center to rotated center of gravity (X-direction)
     // For gravity acting downward (Z-direction) causing rotation around Y-axis,
     // the moment arm is the horizontal distance in X-direction
-    double gravity_moment = - total_weight * cog_x_rotated;
+    double gravity_moment = total_weight * cog_x_rotated;
 
     // Net moment (pressure moment - gravity moment + resistance moment)
     // Positive moment tends to overturn, negative moment stabilizes

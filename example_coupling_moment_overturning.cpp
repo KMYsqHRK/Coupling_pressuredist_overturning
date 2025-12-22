@@ -1328,7 +1328,7 @@ Module::set_node_position(const api::Session & session)
          	    pw::api::Animation ani=session.nodes()[i].animation("transform.rotation",1); //回転についてY軸方向についてのアニメーション設定を取得
                 ani.x.emplace_back(ctime); // xに時間
 
-                ani.y.emplace_back(Angle.back()); // yに角度
+                ani.y.emplace_back(Angle.back() * m_settings.FSI_enabled); // yに角度
 
    	            session.nodes()[i].animation("transform.rotation",1,ani);//回転を変更、Y軸、回転の設定を入力
 

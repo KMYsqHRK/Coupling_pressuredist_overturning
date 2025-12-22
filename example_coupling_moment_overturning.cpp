@@ -1231,7 +1231,7 @@ void Module::calculate_moment(const pw::api::Session & session, const Eigen::Mat
     // Moment arm from rotation center to rotated center of gravity (X-direction)
     // For gravity acting downward (Z-direction) causing rotation around Y-axis,
     // the moment arm is the horizontal distance in X-direction
-    double gravity_moment = total_weight * cog_x_rotated;
+    double gravity_moment = - total_weight * cog_x_rotated;
 
     // Net moment (pressure moment - gravity moment + resistance moment)
     // Positive moment tends to overturn, negative moment stabilizes
@@ -1327,8 +1327,11 @@ Module::set_node_position(const api::Session & session)
             if (session.nodes()[i].object_id()==m_settings.object_id) {
          	    pw::api::Animation ani=session.nodes()[i].animation("transform.rotation",1); //回転についてY軸方向についてのアニメーション設定を取得
                 ani.x.emplace_back(ctime); // xに時間
+
                 ani.y.emplace_back(Angle.back()); // yに角度
+
    	            session.nodes()[i].animation("transform.rotation",1,ani);//回転を変更、Y軸、回転の設定を入力
+
 		        session.nodes()[i].update_motion(ctime);
 	        }
         }

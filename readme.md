@@ -116,7 +116,7 @@ For preprocessing:
 
 For simulation with point pressure measurement:
 ```bash
-/home/labkamiya/repos/Coupling_pressuredist_sliding/bin/pw.executable.example -p . -f sub.json -n 2 -k cuda -g 0
+/home/labkamiya/repos/Coupling_pressuredist_overturning/bin/pw.executable.example -p . -f sub.json -n 2 -k cuda -g 0
 ```
 
 ### 5.3 Performance Features

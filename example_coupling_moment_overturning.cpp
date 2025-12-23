@@ -1285,8 +1285,8 @@ void Module::calculate_new_position(const api::Session & session, const Eigen::M
             new_angular_velocity = 0.0;  // Stop rotation at upper bound
         }
 
-        AngularVelocity.emplace_back(new_angular_velocity);
-        Angle.emplace_back(new_Angle);
+        AngularVelocity.emplace_back(new_angular_velocity * m_settings.FSI_enabled);
+        Angle.emplace_back(new_Angle * m_settings.FSI_enabled);
         Time.emplace_back(ctime);
     }
     else{
@@ -1305,8 +1305,8 @@ void Module::calculate_new_position(const api::Session & session, const Eigen::M
                 new_angular_velocity = 0.0;  // Stop rotation at upper bound
             }
 
-            AngularVelocity.emplace_back(new_angular_velocity);
-            Angle.emplace_back(new_Angle);
+            AngularVelocity.emplace_back(new_angular_velocity * m_settings.FSI_enabled);
+            Angle.emplace_back(new_Angle * m_settings.FSI_enabled);
             Time.emplace_back(ctime);
         }
         else{
@@ -1328,7 +1328,7 @@ Module::set_node_position(const api::Session & session)
          	    pw::api::Animation ani=session.nodes()[i].animation("transform.rotation",1); //回転についてY軸方向についてのアニメーション設定を取得
                 ani.x.emplace_back(ctime); // xに時間
 
-                ani.y.emplace_back(Angle.back() * m_settings.FSI_enabled); // yに角度
+                ani.y.emplace_back(Angle.back()); // yに角度
 
    	            session.nodes()[i].animation("transform.rotation",1,ani);//回転を変更、Y軸、回転の設定を入力
 
